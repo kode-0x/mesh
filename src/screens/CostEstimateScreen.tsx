@@ -10,16 +10,12 @@ import {
   MODEL_SHORT_LABEL,
 } from '../constants.js';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface CostEstimateScreenProps {
   topic: string;
   config: MeshConfig;
   onConfirm: () => void;
   onCancel: () => void;
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function estimateCost(model: string, depth: MeshConfig['depth']): number {
   const notes      = DEPTH_NOTE_COUNT[depth];
@@ -32,8 +28,6 @@ function formatCost(usd: number): string {
   if (usd < 0.01) return '< $0.01';
   return `~$${usd.toFixed(2)}`;
 }
-
-// ── Summary row ───────────────────────────────────────────────────────────────
 
 function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
@@ -48,8 +42,6 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function CostEstimateScreen({
   topic,
   config,
@@ -63,13 +55,11 @@ export function CostEstimateScreen({
   return (
     <Box flexDirection="column" paddingTop={1} paddingX={2} gap={1}>
 
-      {/* Header */}
       <Box gap={1}>
         <Text color={ACCENT} bold>❯</Text>
         <Text bold>Ready to generate</Text>
       </Box>
 
-      {/* Summary table */}
       <Box
         flexDirection="column"
         borderStyle="round"
@@ -84,31 +74,29 @@ export function CostEstimateScreen({
         <Row label="Depth"   value={config.depth} />
         <Row label="Notes"   value={`~${noteCount} notes`} />
 
-        {/* Divider */}
         <Box marginTop={1} marginBottom={1}>
           <Text dimColor>{'─'.repeat(40)}</Text>
         </Box>
 
-        {/* Cost estimate */}
         <Box gap={1}>
           <Box width={14}>
-            <Text dimColor>Est. cost</Text>
+            <Text dimColor>Est. Cost</Text>
           </Box>
           <Text color="white" bold>{formatCost(totalCost)}</Text>
-          <Text dimColor>  via OpenRouter</Text>
+          <Text dimColor>  Via OpenRouter</Text>
         </Box>
 
         <Box marginTop={1}>
           <Text dimColor italic>
-            Estimates are approximate. Actual cost depends on model
-            pricing at time of generation.
+            Estimates Are Approximate. Actual Cost Depends On Model
+            Pricing At Time of Generation.
           </Text>
         </Box>
       </Box>
 
       {/* Confirmation prompt */}
       <Box gap={1} marginTop={1}>
-        <Text bold>Generate vault?  </Text>
+        <Text bold>Generate Vault?  </Text>
         <ConfirmInput
           defaultChoice="confirm"
           onConfirm={onConfirm}
