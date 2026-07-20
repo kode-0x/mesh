@@ -40,7 +40,6 @@ function shouldExclude(id: string): boolean {
 function blendedPricePerMillion(raw: RawModel): number {
   const prompt     = parseFloat(raw.pricing.prompt)     || 0;
   const completion = parseFloat(raw.pricing.completion) || 0;
-  // Average prompt + completion, then scale from per-token to per-millionon
   return ((prompt + completion) / 2) * 1_000_000;
 }
 
@@ -73,9 +72,6 @@ export async function fetchModels(): Promise<OpenRouterModel[]> {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-// ── Formatting helpers (used by UI layers) ────────────────────────────────────
-
-/** Format a per-million price for display: "$4.50 / 1M" or "Free" */
 export function formatPrice(pricePerMillion: number): string {
   if (pricePerMillion === 0) return 'Free';
   return `$${pricePerMillion.toFixed(2)}/1M`;

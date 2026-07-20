@@ -7,7 +7,6 @@ import { ModelSelectScreen }  from './screens/ModelSelectScreen.js';
 import { ConfigScreen, type MeshConfig } from './screens/ConfigScreen.js';
 import { CostEstimateScreen } from './screens/CostEstimateScreen.js';
 import { GenerationScreen }   from './screens/GenerationScreen.js';
-import { IndexScreen }        from './screens/IndexScreen.js';
 import { type OpenRouterModel } from './services/openrouter.js';
 
 // ── Screen registry ───────────────────────────────────────────────────────────
@@ -18,8 +17,7 @@ type Screen =
   | 'modelSelect'
   | 'config'
   | 'estimate'
-  | 'generate'
-  | 'index';
+  | 'generate';
 
 // ── Root App ──────────────────────────────────────────────────────────────────
 
@@ -30,10 +28,6 @@ function App() {
   const [topic,  setTopic]  = useState('');
   const [model,  setModel]  = useState<OpenRouterModel | null>(null);
   const [config, setConfig] = useState<MeshConfig | null>(null);
-
-  // Carried from GenerationScreen → IndexScreen
-  const [vaultPath,  setVaultPath]  = useState('');
-  const [noteCount,  setNoteCount]  = useState(0);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -49,24 +43,10 @@ function App() {
     setScreen('modelSelect');
   }
 
-  function handleCreateIndex(path: string, count: number) {
-    setVaultPath(path);
-    setNoteCount(count);
-    setScreen('index');
-  }
-
-  // After IndexScreen finishes, return to the generate done-screen so the
-  // user can still open folder, start a new generation, or exit.
-  function handleIndexDone() {
-    setScreen('generate');
-  }
-
   function handleRestart() {
     setTopic('');
     setModel(null);
     setConfig(null);
-    setVaultPath('');
-    setNoteCount(0);
     setScreen('start');
   }
 
@@ -107,20 +87,8 @@ function App() {
         topic={topic}
         model={model}
         config={config}
-        onCreateIndex={handleCreateIndex}
         onRestart={handleRestart}
         onExit={exit}
-      />
-    );
-  }
-
-  if (screen === 'index') {
-    return (
-      <IndexScreen
-        topic={topic}
-        vaultPath={vaultPath}
-        noteCount={noteCount}
-        onDone={handleIndexDone}
       />
     );
   }

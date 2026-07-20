@@ -32,20 +32,40 @@ export interface GenerationHandle {
   cancel(): void;
 }
 
-export function createHandle(): GenerationHandle & { _paused: boolean; _cancelled: boolean } {
-  const h = {
+export type HandleWithEmitter = GenerationHandle & {
+  _paused:    boolean;
+  _cancelled: boolean;
+  _emit:      ((event: GenerationEvent) => void) | null;
+};
+
+export function createHandle(): HandleWithEmitter {
+  const h: HandleWithEmitter = {
     _paused:    false,
     _cancelled: false,
-    pause()  { h._paused    = true;  },
-    resume() { h._paused    = false; },
-    cancel() { h._cancelled = true; h._paused = false; },
+    _emit:      null,
+    pause() {
+      if (h._cancelled || h._paused) return;
+      h._paused = true;
+      h._emit?.({ type: 'paused' });
+    },
+    resume() {
+      if (!h._paused) return;
+      h._paused = false;
+      h._emit?.({ type: 'resumed' });
+    },
+    cancel() {
+      if (h._cancelled) return;
+      h._cancelled = true;
+      h._paused    = false;
+      h._emit?.({ type: 'cancelled' });
+    },
   };
   return h;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type Handle = GenerationHandle & { _paused: boolean; _cancelled: boolean };
+type Handle = HandleWithEmitter;
 
 /**
  * Build the relative filesystem path for a node inside the vault.
@@ -120,10 +140,8 @@ async function traverseNode(node: TopicNode, state: TraversalState): Promise<voi
 
   // ── Pause gate ──────────────────────────────────────────────────────────
   if (handle._paused) {
-    emit({ type: 'paused' });
     const result = await gate(handle);
-    if (result === 'cancelled') { emit({ type: 'cancelled' }); return; }
-    emit({ type: 'resumed' });
+    if (result === 'cancelled') return;
   }
 
   emit({
@@ -194,6 +212,9 @@ export async function* runGeneration(
     resolve = null;
   }
 
+  // Wire handle so pause()/resume()/cancel() can emit events directly
+  handle._emit = emit;
+
   async function waitForEvent(): Promise<void> {
     if (queue.length > 0) return;
     await new Promise<void>(r => { resolve = r; });
@@ -219,6 +240,12 @@ export async function* runGeneration(
     emit({ type: 'log', level: 'info', message: `Vault: ${resolvedPath}` });
     emit({ type: 'log', level: 'info', message: `Model: ${config.model}` });
     emit({ type: 'log', level: 'info', message: `Depth: ${config.depth}` });
+    if (config.customPrompt) {
+      const preview = config.customPrompt.length > 60
+        ? config.customPrompt.slice(0, 57) + '…'
+        : config.customPrompt;
+      emit({ type: 'log', level: 'info', message: `Instructions: "${preview}"` });
+    }
 
     const startTime = Date.now();
 
@@ -259,7 +286,6 @@ export async function* runGeneration(
     }
 
     if (handle._cancelled) {
-      emit({ type: 'cancelled' });
       return;
     }
 
@@ -282,7 +308,7 @@ export async function* runGeneration(
 
   // Yield events as they arrive from the pipeline
   let done = false;
-  pipeline.finally(() => { done = true; resolve?.(); resolve = null; });
+  pipeline.finally(() => { done = true; handle._emit = null; resolve?.(); resolve = null; });
 
   while (true) {
     await waitForEvent();

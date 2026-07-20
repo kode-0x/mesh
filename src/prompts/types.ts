@@ -129,6 +129,44 @@ export const MAX_TOKENS: Record<Depth, number> = {
   deep:     2000,
 };
 
+// ── Note type classifier ──────────────────────────────────────────────────────
+
+/**
+ * Infer the most appropriate NoteType for a leaf node based on its title.
+ * Uses keyword matching in order of specificity — first match wins.
+ * Falls back to 'concept' when nothing matches.
+ */
+export function classifyNoteType(title: string): NoteType {
+  const t = title.toLowerCase();
+
+  // deepDive — exhaustive technical treatment
+  if (/\b(deep\s*dive|internals?|architecture|advanced|under\s*the\s*hood|in[\s-]depth)\b/.test(t))
+    return 'deepDive';
+
+  // comparison — weighing alternatives
+  if (/\b(vs\.?|versus|compar(e|ison)|trade[\s-]?off|difference|alternative|choice)\b/.test(t))
+    return 'comparison';
+
+  // reference — lookup / cheat-sheet material
+  if (/\b(reference|cheat[\s-]?sheet|api|syntax|glossary|list of|quick\s*ref|table of|index)\b/.test(t))
+    return 'reference';
+
+  // example — concrete worked demonstration
+  if (/\b(example|case\s*study|walkthrough|tutorial|demo|hands[\s-]?on|implementation|in\s*practice)\b/.test(t))
+    return 'example';
+
+  // howItWorks — mechanism / process / algorithm
+  if (/\b(how\s*(it\s*)?(works?|operates?)|mechanism|process|algorithm|step[\s-]?by[\s-]?step|workflow|pipeline|training|inference|backprop|gradient|optimiz|learn(ing)?|propagat)\b/.test(t))
+    return 'howItWorks';
+
+  // overview — broad survey / introduction
+  if (/\b(overview|introduction|intro|survey|fundamentals?|basics?|foundations?|primer|getting\s*started|what\s*is)\b/.test(t))
+    return 'overview';
+
+  // concept — default for defined terms / ideas
+  return 'concept';
+}
+
 // ── System prompt ─────────────────────────────────────────────────────────────
 
 /**

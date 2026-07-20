@@ -8,8 +8,8 @@ import {
   runGeneration,
   createHandle,
   type GenerationEvent,
+  type HandleWithEmitter,
 } from '../services/generator.js';
-import { indexExists } from '../services/vault.js';
 import { ACCENT } from '../components/Logo.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -22,12 +22,11 @@ interface LogEntry {
 }
 
 interface GenerationScreenProps {
-  topic:          string;
-  model:          OpenRouterModel;
-  config:         MeshConfig;
-  onRestart:      () => void;
-  onExit:         () => void;
-  onCreateIndex:  (vaultPath: string, noteCount: number) => void;
+  topic:     string;
+  model:     OpenRouterModel;
+  config:    MeshConfig;
+  onRestart: () => void;
+  onExit:    () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -100,14 +99,13 @@ function LogLine({ entry }: { entry: LogEntry }) {
 // of the parent component's render cycle.
 
 interface DoneScreenProps {
-  topic:         string;
-  finalPath:     string;
-  finalNotes:    number;
-  finalTokens:   number;
-  finalElapsed:  number;
-  onCreateIndex: (vaultPath: string, noteCount: number) => void;
-  onRestart:     () => void;
-  onExit:        () => void;
+  topic:        string;
+  finalPath:    string;
+  finalNotes:   number;
+  finalTokens:  number;
+  finalElapsed: number;
+  onRestart:    () => void;
+  onExit:       () => void;
 }
 
 function DoneScreen({
@@ -116,29 +114,16 @@ function DoneScreen({
   finalNotes,
   finalTokens,
   finalElapsed,
-  onCreateIndex,
   onRestart,
   onExit,
 }: DoneScreenProps) {
-  // Check on mount whether the index already exists so we know whether to
-  // show the "Create index" option. Re-evaluated every render so it
-  // disappears immediately after IndexScreen completes and we return here.
-  const hasIndex = indexExists(finalPath);
-
   const options = [
-    ...(!hasIndex
-      ? [{ label: '✦ Create index  (index.md, MOC.md, Learning Path.md)', value: 'create-index' }]
-      : []),
     { label: 'Open output folder in file explorer', value: 'open-folder' },
     { label: 'Start a new generation',              value: 'new'         },
     { label: 'Exit',                                value: 'exit'        },
   ];
 
   function handleAction(value: string) {
-    if (value === 'create-index') {
-      onCreateIndex(finalPath, finalNotes);
-      return;
-    }
     if (value === 'open-folder') {
       try {
         const cmd = process.platform === 'win32'  ? `explorer "${finalPath}"`
@@ -169,27 +154,17 @@ function DoneScreen({
         paddingY={1}
         gap={0}
       >
-        <MetaRow label="Topic"  value={topic}                           color={ACCENT} />
+        <MetaRow label="Topic"  value={topic}                         color={ACCENT} />
         <MetaRow label="Notes"  value={`${finalNotes} files written`} />
         <MetaRow label="Tokens" value={formatTokens(finalTokens)} />
         <MetaRow label="Time"   value={formatDuration(finalElapsed)} />
         <MetaRow label="Output" value={finalPath} />
-        <Box marginTop={1}>
-          <MetaRow
-            label="Index"
-            value={hasIndex ? 'present' : 'not created yet'}
-            color={hasIndex ? 'green' : 'yellow'}
-          />
-        </Box>
       </Box>
 
       {/* Actions */}
       <Box flexDirection="column" gap={0}>
-        <Box marginBottom={1} gap={1}>
+        <Box marginBottom={1}>
           <Text bold>What would you like to do?</Text>
-          {!hasIndex && (
-            <Text color="yellow" dimColor>  ← index missing</Text>
-          )}
         </Box>
         <Select options={options} onChange={handleAction} />
       </Box>
@@ -206,7 +181,6 @@ export function GenerationScreen({
   config,
   onRestart,
   onExit,
-  onCreateIndex,
 }: GenerationScreenProps) {
   const { stdout } = useStdout();
   const columns  = stdout?.columns ?? 80;
@@ -232,7 +206,7 @@ export function GenerationScreen({
   const [finalElapsed, setFinalElapsed] = useState(0);
   const [finalPath,    setFinalPath]    = useState(config.outputPath);
 
-  const handleRef = useRef(createHandle());
+  const handleRef = useRef<HandleWithEmitter>(createHandle());
 
   // ── Elapsed ticker ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -351,7 +325,6 @@ export function GenerationScreen({
         finalNotes={finalNotes}
         finalTokens={finalTokens}
         finalElapsed={finalElapsed}
-        onCreateIndex={onCreateIndex}
         onRestart={onRestart}
         onExit={onExit}
       />

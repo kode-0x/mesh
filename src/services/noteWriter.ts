@@ -1,6 +1,8 @@
 import { getApiKey } from '../session.js';
 import { type MeshConfig } from '../screens/ConfigScreen.js';
 import { type TopicNode } from './indexer.js';
+import { buildPrompt } from '../prompts/index.js';
+import { MAX_TOKENS } from '../prompts/types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,56 +11,9 @@ export interface NoteResult {
   tokensUsed: number;
 }
 
-// ── Prompt ────────────────────────────────────────────────────────────────────
-
-function buildNotePrompt(node: TopicNode, rootTopic: string, depth: MeshConfig['depth']): string {
-  const breadcrumb  = node.path.join(' > ');
-  const parent      = node.path.length > 1 ? node.path[node.path.length - 2]! : rootTopic;
-  const siblingHint = depth === 'concise' ? 'concise overview' : depth === 'deep' ? 'in-depth analysis' : 'solid coverage';
-
-  // Leaf siblings are linked via wiki-links in the content — give the model
-  // the parent path so it can produce accurate backlinks.
-  return `You are an expert knowledge base author writing for an Obsidian vault.
-
-Write a comprehensive Markdown note about the topic below.
-
----
-Root subject:  ${rootTopic}
-Current topic: ${node.title}
-Breadcrumb:    ${breadcrumb}
-Parent note:   ${parent}
-Coverage:      ${siblingHint}
----
-
-Requirements:
-1. Start with YAML frontmatter (title, topic, parent, tags, created)
-2. Open with a one-sentence definition of "${node.title}"
-3. Include these sections (adapt headings to suit the topic):
-   - Overview
-   - Key Concepts
-   - Details / How It Works
-   - Examples or Use Cases
-   - Common Pitfalls or Limitations (if applicable)
-   - See Also
-4. The "See Also" section must contain Obsidian wiki-links to related notes,
-   including: [[${parent}]] and [[${rootTopic} — index]]
-5. Use clean Markdown: headers, bullet lists, code blocks where relevant
-6. Be factually accurate and concise — avoid filler sentences
-7. Do NOT wrap the output in markdown fences
-
-Length guideline: ${depth === 'concise' ? '150–250' : depth === 'deep' ? '400–700' : '250–400'} words.`;
-}
-
 // ── OpenRouter call ───────────────────────────────────────────────────────────
 
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-// Token budget per note by depth — used to cap API spend and set max_tokens.
-const MAX_TOKENS: Record<MeshConfig['depth'], number> = {
-  concise:  512,
-  standard: 1024,
-  deep:     2048,
-};
 
 export async function generateNote(
   node:       TopicNode,
@@ -68,8 +23,8 @@ export async function generateNote(
   const key = getApiKey();
   if (!key) throw new Error('No API key in session.');
 
-  const prompt    = buildNotePrompt(node, rootTopic, config.depth);
-  const maxTokens = MAX_TOKENS[config.depth];
+  const { system, user } = buildPrompt(node, rootTopic, config.depth, config.customPrompt);
+  const maxTokens        = MAX_TOKENS[config.depth];
 
   const res = await fetch(API_URL, {
     method:  'POST',
@@ -78,8 +33,11 @@ export async function generateNote(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model:       config.model,
-      messages:    [{ role: 'user', content: prompt }],
+      model:      config.model,
+      messages:   [
+        { role: 'system', content: system },
+        { role: 'user',   content: user   },
+      ],
       temperature: 0.4,
       max_tokens:  maxTokens,
     }),

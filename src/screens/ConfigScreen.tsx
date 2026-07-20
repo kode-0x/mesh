@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Box, Text, useStdout } from 'ink';
-import { Select, TextInput, ConfirmInput } from '@inkjs/ui';
+import { Select, TextInput } from '@inkjs/ui';
 import { ACCENT } from '../components/Logo.js';
+import { readInstructions, resolveOutputPath } from '../services/vault.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface MeshConfig {
-  model:       string;
-  outputPath:  string;
-  depth:       'concise' | 'standard' | 'deep';
-  createIndex: boolean;
+  model:         string;
+  outputPath:    string;
+  depth:         'concise' | 'standard' | 'deep';
+  customPrompt?: string; // optional user-supplied instructions appended to every note prompt
 }
 
 interface ConfigScreenProps {
@@ -55,16 +56,20 @@ function DoneRow({ label, value }: { label: string; value: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type Step = 'outputPath' | 'depth' | 'createIndex';
+type Step = 'outputPath' | 'depth' | 'customPrompt' | 'customPromptInput';
 
 export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
   const { stdout } = useStdout();
   const columns  = stdout?.columns ?? 80;
   const boxWidth = Math.min(62, Math.max(40, columns - 6));
 
-  const [step,       setStep]       = useState<Step>('outputPath');
-  const [outputPath, setOutputPath] = useState('');
-  const [depth,      setDepth]      = useState<MeshConfig['depth']>('standard');
+  const [step,        setStep]        = useState<Step>('outputPath');
+  const [outputPath,  setOutputPath]  = useState('');
+  const [depth,       setDepth]       = useState<MeshConfig['depth']>('standard');
+  const [customPrompt, setCustomPrompt] = useState<string | undefined>(undefined);
+
+  // Resolved once outputPath is confirmed — used to check for INSTRUCTIONS.md
+  const [instructionsContent, setInstructionsContent] = useState<string | null>(null);
 
   function handleOutputPathSubmit(val: string) {
     const trimmed = val.trim() || './vault';
@@ -73,19 +78,59 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
   }
 
   function handleDepthSelect(value: string) {
-    setDepth(value as MeshConfig['depth']);
-    setStep('createIndex');
+    const chosen = value as MeshConfig['depth'];
+    setDepth(chosen);
+
+    // Check for INSTRUCTIONS.md now that we have the output path
+    const instructions = readInstructions(outputPath || './vault');
+    setInstructionsContent(instructions);
+    setStep('customPrompt');
   }
 
-  function handleIndexConfirm() {
-    onComplete({ model, outputPath: outputPath || './vault', depth, createIndex: true });
+  function handleCustomPromptChoice(value: string) {
+    if (value === 'file') {
+      // Use the INSTRUCTIONS.md content directly
+      finish(instructionsContent ?? undefined);
+      return;
+    }
+    if (value === 'enter') {
+      setStep('customPromptInput');
+      return;
+    }
+    // 'skip' — no custom prompt
+    finish(undefined);
   }
 
-  function handleIndexCancel() {
-    onComplete({ model, outputPath: outputPath || './vault', depth, createIndex: false });
+  function handleCustomPromptInput(val: string) {
+    const trimmed = val.trim();
+    const prompt  = trimmed.length > 0 ? trimmed : undefined;
+    setCustomPrompt(prompt);
+    finish(prompt);
   }
 
-  const stepNumber = step === 'outputPath' ? 1 : step === 'depth' ? 2 : 3;
+  function finish(prompt: string | undefined) {
+    onComplete({
+      model,
+      outputPath: outputPath || './vault',
+      depth,
+      customPrompt: prompt,
+    });
+  }
+
+  // Build options for the customPrompt select based on whether INSTRUCTIONS.md exists
+  const customPromptOptions = [
+    ...(instructionsContent !== null
+      ? [{ label: `Use INSTRUCTIONS.md  (${resolveOutputPath(outputPath || './vault')})`, value: 'file' }]
+      : []
+    ),
+    { label: 'Enter a custom prompt',  value: 'enter' },
+    { label: 'Skip — use defaults',    value: 'skip'  },
+  ];
+
+  // Step numbers: outputPath=1, depth=2, customPrompt=3
+  const stepNumber = step === 'outputPath' ? 1
+                   : step === 'depth'      ? 2
+                   : 3;
 
   return (
     <Box flexDirection="column" paddingTop={1} paddingX={2}>
@@ -93,7 +138,9 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
 
       {/* Completed steps */}
       {outputPath && <DoneRow label="Output" value={outputPath} />}
-      {step === 'createIndex' && <DoneRow label="Depth"  value={depth} />}
+      {(step === 'customPrompt' || step === 'customPromptInput') && (
+        <DoneRow label="Depth" value={depth} />
+      )}
 
       {/* Active step */}
       <Box marginTop={1} flexDirection="column">
@@ -126,32 +173,49 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
           </>
         )}
 
-        {step === 'createIndex' && (
+        {step === 'customPrompt' && (
           <>
             <Box flexDirection="column" gap={0} marginBottom={1}>
-              <Text bold>Create index now?</Text>
+              <Text bold>Custom instructions</Text>
               <Box marginTop={1} marginLeft={2} flexDirection="column" gap={0}>
                 <Text dimColor>
-                  The index is a set of navigation files added to your vault:
+                  Extra instructions appended to every note generation prompt.
                 </Text>
-                <Text dimColor>  · <Text color="white">index.md</Text>    — root entry point with links to every note</Text>
-                <Text dimColor>  · <Text color="white">MOC.md</Text>       — Map of Content, organised by topic</Text>
-                <Text dimColor>  · <Text color="white">Learning Path.md</Text> — recommended study sequence</Text>
+                {instructionsContent !== null && (
+                  <Box marginTop={1} gap={1}>
+                    <Text color="green">✦</Text>
+                    <Text dimColor>
+                      <Text color="white">INSTRUCTIONS.md</Text> found in the output folder.
+                    </Text>
+                  </Box>
+                )}
               </Box>
-              <Box marginTop={1}>
+            </Box>
+            <Select options={customPromptOptions} onChange={handleCustomPromptChoice} />
+          </>
+        )}
+
+        {step === 'customPromptInput' && (
+          <>
+            <Box marginBottom={1} flexDirection="column" gap={0}>
+              <Text bold>Enter custom instructions</Text>
+              <Box marginTop={1} marginLeft={2}>
                 <Text dimColor>
-                  You can also create it later from the vault done screen.
+                  These will be appended to every note prompt. Press <Text color="white" bold>Enter</Text> to confirm.
                 </Text>
               </Box>
             </Box>
-
-            <Box gap={1}>
-              <Text bold>Create index?  </Text>
-              <ConfirmInput
-                defaultChoice="confirm"
-                onConfirm={handleIndexConfirm}
-                onCancel={handleIndexCancel}
+            <Box borderStyle="round" borderColor="gray" paddingX={1} width={boxWidth}>
+              <Text color={ACCENT} bold>{'❯ '}</Text>
+              <TextInput
+                placeholder="e.g. Focus on practical applications. Use Python examples."
+                onSubmit={handleCustomPromptInput}
               />
+            </Box>
+            <Box marginTop={1} height={1}>
+              <Text dimColor>
+                {'  '}Leave blank to skip custom instructions.
+              </Text>
             </Box>
           </>
         )}

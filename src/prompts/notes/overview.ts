@@ -2,88 +2,100 @@
  * overview.ts — Broad survey of a subject area.
  *
  * Purpose: orient the reader, map the territory, and link to child notes.
- * Structure: what it is → why it exists → major sub-areas → how this vault
- *            covers the topic → navigation links.
+ * Structure varies by depth:
+ *   concise  — what it is · core areas · vault navigation
+ *   standard — definition · significance · sub-areas · challenges · navigation
+ *   deep     — thorough definition · history · sub-areas · foundations ·
+ *              challenges · relationships · navigation
  */
 import { type PromptVariants, type PromptContext, frontmatter, seeAlso, WORD_COUNT } from '../types.js';
 
 export const overview: PromptVariants = {
 
+  // ── Concise ────────────────────────────────────────────────────────────────
   concise: (ctx: PromptContext) => `${frontmatter(ctx)}
 
 # ${ctx.node.title}
 
-Write a concise overview note (${WORD_COUNT.concise}) that orients a reader arriving at **${ctx.node.title}** for the first time within the ${ctx.rootTopic} vault.
-
+You are writing a **concise overview note** for an Obsidian vault on **${ctx.rootTopic}**.
+Topic: **${ctx.node.title}**
 Breadcrumb: ${ctx.breadcrumb}
+Target length: ${WORD_COUNT.concise}
+
+Write the following sections in order. Use these exact headings.
 
 ## What Is ${ctx.node.title}?
-One paragraph: a clear, high-level description.
+One tight paragraph (3–4 sentences). State what "${ctx.node.title}" is, what problem or purpose it addresses, and where it sits within ${ctx.rootTopic}. Write for a reader who has never encountered this area before.
 
 ## Core Areas
-Bullet list of 3–5 major sub-areas or themes covered under this topic.
+A bullet list of 3–5 sub-areas or major themes. Each bullet: the sub-area name in **bold**, followed by a single clause explaining what it covers. These should map to real divisions within "${ctx.node.title}", not invented categories.
 
 ## In This Vault
-Brief note on what notes exist under this topic (reference child notes as [[wiki-links]] if known from the breadcrumb).
+One sentence describing what the notes under "${ctx.node.title}" cover. Use [[wiki-links]] for any child topics visible in the breadcrumb.
 
 ${seeAlso(ctx)}`,
 
+  // ── Standard ───────────────────────────────────────────────────────────────
   standard: (ctx: PromptContext) => `${frontmatter(ctx)}
 
 # ${ctx.node.title}
 
-Write a standard overview note (${WORD_COUNT.standard}) surveying **${ctx.node.title}** within the ${ctx.rootTopic} vault.
-
+You are writing a **standard overview note** for an Obsidian vault on **${ctx.rootTopic}**.
+Topic: **${ctx.node.title}**
 Breadcrumb: ${ctx.breadcrumb}
+Target length: ${WORD_COUNT.standard}
+
+Write the following sections in order. Use these exact headings.
 
 ## What Is ${ctx.node.title}?
-Two paragraphs: definition and purpose. Situate it within ${ctx.parent}.
+Two paragraphs. First paragraph: definition, scope, and purpose. Second paragraph: how "${ctx.node.title}" fits within ${ctx.parent} — what it shares with adjacent areas and what makes it distinct. Avoid vague openers like "In the world of…".
 
 ## Why It Matters
-The significance of ${ctx.node.title} in the broader field of ${ctx.rootTopic}.
+One substantial paragraph. State the practical or theoretical significance of "${ctx.node.title}" within ${ctx.rootTopic}. Name a concrete consequence of understanding this area well, and a concrete consequence of misunderstanding or ignoring it.
 
 ## Major Sub-Areas
-Bullet list (4–6 items) of the key themes or disciplines that fall under this topic.
-Use [[wiki-links]] for any that have their own notes.
+A bullet list of 4–6 sub-areas. For each: **sub-area name** in bold, one sentence on what it covers, and a [[wiki-link]] if the sub-area has its own note in this vault. The list should be mutually exclusive and collectively exhaustive within "${ctx.node.title}".
 
 ## Core Challenges
-Two or three sentences on the central problems or open questions in this area.
+Two to three sentences naming the central unsolved problems, design tensions, or conceptual difficulties in "${ctx.node.title}". These should be challenges that motivate the structure of the rest of the vault notes.
 
 ## In This Vault
-A short navigation paragraph describing what the child notes cover.
+A short paragraph (2–3 sentences) describing how the child notes under "${ctx.node.title}" are organised and what a reader will find in each area. Use [[wiki-links]] for child topics where appropriate.
 
 ${seeAlso(ctx)}`,
 
+  // ── Deep ───────────────────────────────────────────────────────────────────
   deep: (ctx: PromptContext) => `${frontmatter(ctx)}
 
 # ${ctx.node.title}
 
-Write a comprehensive overview note (${WORD_COUNT.deep}) that serves as the authoritative entry point for **${ctx.node.title}** in the ${ctx.rootTopic} vault.
-
+You are writing a **deep overview note** for an Obsidian vault on **${ctx.rootTopic}**.
+Topic: **${ctx.node.title}**
 Breadcrumb: ${ctx.breadcrumb}
+Target length: ${WORD_COUNT.deep}
+
+Write the following sections in order. Use these exact headings.
 
 ## What Is ${ctx.node.title}?
-A thorough definition: scope, purpose, and situating it within ${ctx.parent} and ${ctx.rootTopic}.
+Three to four sentences. Provide a thorough definition covering: scope (what falls within this area and what does not), purpose (what questions or problems this area addresses), and position (how it relates to ${ctx.parent} and to ${ctx.rootTopic} as a whole). Be precise enough that an expert would not disagree with your characterisation.
 
 ## Historical Development
-How this area emerged and evolved over time.
+Three to four sentences tracing how "${ctx.node.title}" emerged as a distinct area: key milestones, influential contributors or works, and how the field's scope or methods have shifted over time. Ground the history in specific events or publications where possible.
 
 ## Major Sub-Areas
-Detailed breakdown (5–8 items) of the key themes, disciplines, or sub-fields.
-For each: one sentence explaining what it covers and why it is distinct.
+A bullet list of 5–8 sub-areas. For each: **sub-area name** in bold, one sentence explaining what it studies or builds, one sentence on what distinguishes it from the other sub-areas, and a [[wiki-link]] if a dedicated note exists. Organise the list from foundational to advanced.
 
 ## Foundational Concepts
-The three to five ideas a reader must understand before going deeper.
-Link each to its concept note with [[wiki-links]].
+Three to five concepts a reader must understand before exploring the child notes. For each: the concept name as a [[wiki-link]] (if it has a note), followed by one sentence on why it is prerequisite — not just what it is, but why not understanding it creates confusion downstream.
 
 ## Core Challenges & Open Questions
-The active problems researchers and practitioners wrestle with today.
+A paragraph of four to five sentences describing the active problems researchers and practitioners wrestle with in "${ctx.node.title}" today. Distinguish between challenges that are fundamentally hard (no known solution) and those that are practically hard (solutions exist but are difficult to apply).
 
 ## Relationships to Other Areas
-How ${ctx.node.title} connects to adjacent fields within ${ctx.rootTopic}.
+Three to five other areas within ${ctx.rootTopic} that "${ctx.node.title}" interacts with. For each: one sentence naming the type of interaction (depends on, informs, competes with, extends). Use [[wiki-links]] where notes exist.
 
 ## In This Vault
-A structured navigation guide to child notes and sub-sections.
+A structured navigation guide: one paragraph explaining the overall organisation of child notes, followed by a bullet list of the major sub-sections with one-sentence summaries. Use [[wiki-links]] throughout.
 
 ${seeAlso(ctx)}`,
 

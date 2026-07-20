@@ -42,8 +42,6 @@ function filterModels(models: OpenRouterModel[], query: string): OpenRouterModel
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function ModelSelectScreen({ onSelect }: ModelSelectScreenProps) {
   const { stdout } = useStdout();
   const columns = stdout?.columns ?? 80;
@@ -53,9 +51,6 @@ export function ModelSelectScreen({ onSelect }: ModelSelectScreenProps) {
   const [error, setError]           = useState('');
   const [query, setQuery]           = useState('');
 
-  // Two-mode focus: 'search' means TextInput is active, Select is disabled.
-  // 'navigate' means TextInput is disabled, Select receives all key events.
-  // This prevents both components from consuming the same keystrokes at once.
   const [mode, setMode] = useState<InputMode>('search');
 
   useEffect(() => {
@@ -67,8 +62,6 @@ export function ModelSelectScreen({ onSelect }: ModelSelectScreenProps) {
       });
   }, []);
 
-  // Tab toggles between search and navigate modes regardless of which
-  // component currently has focus. Escape always returns to search mode.
   useInput((_input, key) => {
     if (fetchState !== 'ready') return;
     if (key.tab) {
@@ -90,8 +83,6 @@ export function ModelSelectScreen({ onSelect }: ModelSelectScreenProps) {
     if (model) onSelect(model);
   }
 
-  // ── Loading ────────────────────────────────────────────────────────────────
-
   if (fetchState === 'loading') {
     return (
       <Box flexDirection="column" paddingTop={1} paddingX={2} gap={1}>
@@ -106,8 +97,6 @@ export function ModelSelectScreen({ onSelect }: ModelSelectScreenProps) {
       </Box>
     );
   }
-
-  // ── Error ──────────────────────────────────────────────────────────────────
 
   if (fetchState === 'error') {
     return (

@@ -145,6 +145,26 @@ export function sanitiseFilename(title: string): string {
     .slice(0, 200);                   // max filename length headroom
 }
 
+// ── INSTRUCTIONS.md ──────────────────────────────────────────────────────────
+
+/**
+ * Attempt to read an INSTRUCTIONS.md file from the resolved output path.
+ *
+ * Returns the trimmed file contents if the file exists and is readable,
+ * or null if the file is absent or cannot be read.
+ */
+export function readInstructions(rawOutputPath: string): string | null {
+  const resolved = resolveOutputPath(rawOutputPath);
+  const filePath = path.join(resolved, 'INSTRUCTIONS.md');
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const content = fs.readFileSync(filePath, 'utf8').trim();
+    return content.length > 0 ? content : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Index files ───────────────────────────────────────────────────────────────
 
 /** The three filenames that together constitute the vault index. */
