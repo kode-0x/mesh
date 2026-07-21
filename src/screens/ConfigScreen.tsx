@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { Select, TextInput } from '@inkjs/ui';
 import { ACCENT } from '../components/Logo.js';
-import { readInstructions, resolveOutputPath } from '../services/vault.js';
+import { readInstructions } from '../services/vault.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,10 +63,9 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
   const columns  = stdout?.columns ?? 80;
   const boxWidth = Math.min(62, Math.max(40, columns - 6));
 
-  const [step,        setStep]        = useState<Step>('outputPath');
-  const [outputPath,  setOutputPath]  = useState('');
-  const [depth,       setDepth]       = useState<MeshConfig['depth']>('standard');
-  const [customPrompt, setCustomPrompt] = useState<string | undefined>(undefined);
+  const [step,       setStep]       = useState<Step>('outputPath');
+  const [outputPath, setOutputPath] = useState('');
+  const [depth,      setDepth]      = useState<MeshConfig['depth']>('standard');
 
   // Resolved once outputPath is confirmed — used to check for INSTRUCTIONS.md
   const [instructionsContent, setInstructionsContent] = useState<string | null>(null);
@@ -78,21 +77,26 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
   }
 
   function handleDepthSelect(value: string) {
-    const chosen = value as MeshConfig['depth'];
-    setDepth(chosen);
-
-    // Check for INSTRUCTIONS.md now that we have the output path
+    const chosen      = value as MeshConfig['depth'];
     const instructions = readInstructions(outputPath || './vault');
+
+    setDepth(chosen);
     setInstructionsContent(instructions);
-    setStep('customPrompt');
+
+    if (instructions !== null) {
+      // INSTRUCTIONS.md found — use it automatically, skip the prompt step
+      onComplete({
+        model,
+        outputPath:   outputPath || './vault',
+        depth:        chosen,
+        customPrompt: instructions,
+      });
+    } else {
+      setStep('customPrompt');
+    }
   }
 
   function handleCustomPromptChoice(value: string) {
-    if (value === 'file') {
-      // Use the INSTRUCTIONS.md content directly
-      finish(instructionsContent ?? undefined);
-      return;
-    }
     if (value === 'enter') {
       setStep('customPromptInput');
       return;
@@ -103,31 +107,24 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
 
   function handleCustomPromptInput(val: string) {
     const trimmed = val.trim();
-    const prompt  = trimmed.length > 0 ? trimmed : undefined;
-    setCustomPrompt(prompt);
-    finish(prompt);
+    finish(trimmed.length > 0 ? trimmed : undefined);
   }
 
   function finish(prompt: string | undefined) {
     onComplete({
       model,
-      outputPath: outputPath || './vault',
+      outputPath:   outputPath || './vault',
       depth,
       customPrompt: prompt,
     });
   }
 
-  // Build options for the customPrompt select based on whether INSTRUCTIONS.md exists
+  // Options when no INSTRUCTIONS.md was found
   const customPromptOptions = [
-    ...(instructionsContent !== null
-      ? [{ label: `Use INSTRUCTIONS.md  (${resolveOutputPath(outputPath || './vault')})`, value: 'file' }]
-      : []
-    ),
-    { label: 'Enter a custom prompt',  value: 'enter' },
-    { label: 'Skip — use defaults',    value: 'skip'  },
+    { label: 'Enter a custom prompt', value: 'enter' },
+    { label: 'Skip — use defaults',   value: 'skip'  },
   ];
 
-  // Step numbers: outputPath=1, depth=2, customPrompt=3
   const stepNumber = step === 'outputPath' ? 1
                    : step === 'depth'      ? 2
                    : 3;
@@ -177,18 +174,10 @@ export function ConfigScreen({ topic, model, onComplete }: ConfigScreenProps) {
           <>
             <Box flexDirection="column" gap={0} marginBottom={1}>
               <Text bold>Custom instructions</Text>
-              <Box marginTop={1} marginLeft={2} flexDirection="column" gap={0}>
+              <Box marginTop={1} marginLeft={2}>
                 <Text dimColor>
                   Extra instructions appended to every note generation prompt.
                 </Text>
-                {instructionsContent !== null && (
-                  <Box marginTop={1} gap={1}>
-                    <Text color="green">✦</Text>
-                    <Text dimColor>
-                      <Text color="white">INSTRUCTIONS.md</Text> found in the output folder.
-                    </Text>
-                  </Box>
-                )}
               </Box>
             </Box>
             <Select options={customPromptOptions} onChange={handleCustomPromptChoice} />

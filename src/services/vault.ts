@@ -150,19 +150,32 @@ export function sanitiseFilename(title: string): string {
 /**
  * Attempt to read an INSTRUCTIONS.md file from the resolved output path.
  *
+ * The lookup is case-insensitive on case-sensitive filesystems — it checks
+ * both INSTRUCTIONS.md and instructions.md so either casing works.
+ *
  * Returns the trimmed file contents if the file exists and is readable,
  * or null if the file is absent or cannot be read.
  */
 export function readInstructions(rawOutputPath: string): string | null {
   const resolved = resolveOutputPath(rawOutputPath);
-  const filePath = path.join(resolved, 'INSTRUCTIONS.md');
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const content = fs.readFileSync(filePath, 'utf8').trim();
-    return content.length > 0 ? content : null;
-  } catch {
-    return null;
+
+  // Try both casings so the feature works regardless of how the user named the file
+  const candidates = [
+    path.join(resolved, 'INSTRUCTIONS.md'),
+    path.join(resolved, 'instructions.md'),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+      const content = fs.readFileSync(filePath, 'utf8').trim();
+      if (content.length > 0) return content;
+    } catch {
+      // unreadable — try next candidate
+    }
   }
+
+  return null;
 }
 
 // ── Index files ───────────────────────────────────────────────────────────────
